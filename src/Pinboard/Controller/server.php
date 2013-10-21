@@ -456,6 +456,56 @@ function getSlowPages($conn, $serverName, $hostName, $startPos, $rowCount, $colO
     return $data;
 }
 
+
+$server->get('/{serverName}/{hostName}/script-sum/{pageNum}/{colOrder}/{colDir}', function($serverName, $hostName, $pageNum, $colOrder, $colDir) use ($app, $rowPerPage) {
+
+   checkUserAccess($app, $serverName);
+
+   $pageNum = str_replace('page', '', $pageNum);
+
+   $script_name = $_GET['script_name'];
+
+   $result = array(
+      'server_name' => $serverName,
+      'hostname'    => $hostName,
+      'title'       => 'Script summary ' . $script_name,
+      'pageNum'     => $pageNum,
+      'colOrder'    => $colOrder,
+      'colDir'      => $colDir
+   );
+
+   $result['rowPerPage'] = $rowPerPage;
+
+   $rowCount = getScriptSumCount($app['db'], $serverName, $hostName, $script_name);
+
+   $result['rowCount'] = $rowCount;
+
+   $pageCount = ceil($rowCount / $rowPerPage);
+   $result['pageCount'] = $pageCount;
+   if ($pageCount != 0) {
+      if ($pageNum < 1 || $pageNum > $pageCount) {
+         $app->abort(404, "Page $pageNum does not exist.");
+      }
+   }
+   $startPos = ($pageNum - 1) * $rowPerPage;
+
+   $result['hosts'] = getHosts($app['db'], $serverName);
+   $result['pages'] = getScriptSum($app['db'], $serverName, $hostName, $startPos, $rowPerPage, $colOrder, $colDir, $script_name);
+   $result['script_name'] = $script_name;
+
+   return $app['twig']->render(
+      'script_sum.html.twig',
+      $result
+   );
+
+})
+->value('hostName', 'all')
+->value('pageNum', 'page1')
+->value('colOrder', null)
+->value('colDir', null)
+->assert('pageNum', 'page\d+')
+->bind('server_script_sum');
+
 $server->get('/{serverName}/{hostName}/mem-usage/{pageNum}/{colOrder}/{colDir}', function($serverName, $hostName, $pageNum, $colOrder, $colDir) use ($app, $rowPerPage) {
     checkUserAccess($app, $serverName);
 
@@ -527,6 +577,44 @@ function getHeavyPagesCount($conn, $serverName, $hostName){
     return (int)$data[0]['COUNT(*)'];
 }
 
+function getScriptSumCount($conn, $serverName, $hostName, $script_name)
+{
+
+   $params = array(
+      'server_name' => $serverName,
+      'created_at'  => date('Y-m-d H:i:s', strtotime('-1 day')),
+   );
+   $hostCondition = '';
+   $scriptCondition = '';
+
+   if ($hostName != 'all') {
+      $params['hostname'] = $hostName;
+      $hostCondition = 'AND hostname = :hostname';
+   }
+
+   if ($script_name !== null)
+   {
+      $params['script_name'] = $script_name;
+      $scriptCondition = 'AND script_name = :script_name';
+   }
+
+   $sql = '
+        SELECT
+            COUNT(*)
+        FROM
+            ipm_script_details
+        WHERE
+            server_name = :server_name
+            ' . $hostCondition . '
+            ' . $scriptCondition . '
+            AND created_at > :created_at
+    ';
+
+   $data = $conn->fetchAll($sql, $params);
+
+   return (int)$data[0]['COUNT(*)'];
+}
+
 function getCPUPagesCount($conn, $serverName, $hostName){
    $params = array(
       'server_name' => $serverName,
@@ -591,6 +679,57 @@ function getCPUPages($conn, $serverName, $hostName, $startPos, $rowCount, $colOr
 
    foreach($data as &$item) {
       $item['cpu_peak_usage']  = number_format($item['cpu_peak_usage'], 0, '.', ',');
+   }
+
+   return $data;
+}
+
+
+function getScriptSum($conn, $serverName, $hostName, $startPos, $rowCount, $colOrder, $colDir, $script_name)
+{
+
+   $params = array(
+      'server_name' => $serverName,
+      'created_at'  => date('Y-m-d H:i:s', strtotime('-1 day')),
+   );
+   $hostCondition = '';
+   $scriptCondition = '';
+
+   if ($hostName != 'all') {
+      $params['hostname'] = $hostName;
+      $hostCondition = 'AND hostname = :hostname';
+   }
+
+   if ($script_name !== null)
+   {
+      $params['script_name'] = $script_name;
+      $scriptCondition = 'AND script_name = :script_name';
+   }
+
+   $orderBy = 'created_at DESC';
+   if (null !== $colOrder) {
+      $orderBy = generateOrderBy($colOrder, $colDir, 'ipm_script_details');
+   }
+
+   $sql = '
+        SELECT
+            DISTINCT server_name, hostname, script_name, cpu_peak_usage, mem_peak_usage, req_time, created_at
+        FROM
+            ipm_script_details
+        WHERE
+            server_name = :server_name
+            ' . $hostCondition . '
+            ' . $scriptCondition . '
+            AND created_at > :created_at
+        ORDER BY
+            ' . $orderBy .'
+        LIMIT
+            ' . $startPos . ', ' . $rowCount . '
+    ';
+
+   $data = $conn->fetchAll($sql, $params);
+   foreach($data as &$item) {
+      $item['mem_peak_usage']  = number_format($item['mem_peak_usage'], 0, '.', ',');
    }
 
    return $data;

@@ -104,6 +104,7 @@ class AggregateCommand extends Command
             "ipm_mem_peak_usage_details",
             "ipm_status_details",
             "ipm_cpu_usage_details",
+            "ipm_script_details"
         );
 
         $sql = '';
@@ -339,6 +340,27 @@ class AggregateCommand extends Command
                     ru_utime DESC
                 LIMIT
                     10
+            ;';
+
+          if ($sql != ''){
+             $db->query($sql);
+          }
+       }
+
+       $sql = '';
+       foreach($servers as $server){
+
+          $sql .= '
+                INSERT INTO ipm_script_details
+                    (server_name, hostname, script_name, cpu_peak_usage, mem_peak_usage, req_time)
+                SELECT
+                    server_name, hostname, script_name, max(ru_utime), max(mem_peak_usage), max(req_time)
+                FROM
+                    request
+                WHERE
+                    server_name = "' . $server['server_name'] . '" AND hostname = "' . $server['hostname'] . '"
+                GROUP BY
+                    server_name, hostname, script_name
             ;';
 
           if ($sql != ''){

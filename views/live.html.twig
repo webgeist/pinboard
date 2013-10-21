@@ -172,7 +172,7 @@
             {% for page in pages %}
             <tr>
               <td>{{ page.hostname }}</a></td>
-              <td><a href="http://{{ page.server_name ~ page.script_name }}" title="">{{ page.script_name }}</a></td>
+              <td><a href="{{ path('server_script_sum', { serverName: server_name, hostName: hostname, pageNum: 'page1', colOrder: colOrder, colDir: colDir }) }}?script_name={{ page.script_name }}" title="">{{ page.script_name }}</a></td>
               <td><div class="text-right">{{ page.req_time_format }}</div></td>
               <td><div class="text-right">{{ page.status }}</div></td>
               <td><div class="text-right">{{ page.mem_peak_usage_format }}</div></td>
@@ -189,7 +189,7 @@
         <% for (var i = 0; i < pages.length; i++) { %>
         <tr style="display: none;">
           <td><%=pages[i].hostname%></a></td>
-          <td><a href="http://<%=pages[i].server_name%><%=pages[i].script_name%>" title=""><%=pages[i].script_name%></a></td>
+          <td><a href="/server/<%=pages[i].server_name%>/all/script-sum?script_name=<%=pages[i].script_name%>" title=""><%=pages[i].script_name%></a></td>
           <td><div class="text-right"><%=pages[i].req_time_format%></div></td>
           <td><div class="text-right"><%=pages[i].status%></div></td>
           <td><div class="text-right"><%=pages[i].mem_peak_usage_format%></div></td>

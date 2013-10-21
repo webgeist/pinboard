@@ -29,7 +29,7 @@
             {% for page in pages %}
             <tr class="{{ page.mem_peak_usage >= 50000 ? 'error' : (page.mem_peak_usage >= 30000 ? 'warning' : '') }}">
               <td>{{ page.hostname }}</a></td>
-              <td><a href="http://{{ page.server_name ~ page.script_name }}" title="">{{ page.script_name }}</a></td>
+              <td><a href="{{ path('server_script_sum', { serverName: server_name, hostName: hostname, pageNum: 'page1', colOrder: colOrder, colDir: colDir }) }}?script_name={{ page.script_name }}" title="">{{ page.script_name }}</a></td>
               <td>{{ page.mem_peak_usage }}</td>
               <td>{{ page.created_at }}</td>
             </tr>
